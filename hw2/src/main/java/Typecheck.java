@@ -7,8 +7,8 @@ public class Typecheck {
 			Goal goal = new MiniJavaParser(System.in).Goal();
 			SymbolTableVisitor symbol_table_visitor = new SymbolTableVisitor();
 			symbol_table_visitor.visit(goal);
-			SymbolTable symbol_table = symbol_table_visitor.getSymbolTable();
-			symbol_table.print();
+			TypeCheckVisitor type_check_visitor = new TypeCheckVisitor(symbol_table_visitor.getSymbolTable());
+			type_check_visitor.visit(goal);
 			System.out.println("Program type checked successfully");
 		}
 		catch(ParseException e) {

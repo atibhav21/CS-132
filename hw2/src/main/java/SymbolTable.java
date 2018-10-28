@@ -2,17 +2,17 @@ import syntaxtree.*;
 import java.util.*;
 
 class FunctionSymbolTable {
-	public HashMap<String, Type> local_variables;
-	public HashMap<String, Type> formal_parameters;
-	public Type return_type;
+	public HashMap<String, String> local_variables;
+	public LinkedHashMap<String, String> formal_parameters;
+	public String return_type;
 
-	public FunctionSymbolTable(Type return_type) {
-		this.local_variables = new HashMap<String, Type>();
-		this.formal_parameters = new HashMap<String, Type>();
+	public FunctionSymbolTable(String return_type) {
+		this.local_variables = new HashMap<String, String>();
+		this.formal_parameters = new LinkedHashMap<String, String>();
 		this.return_type = return_type;
 	}
 
-	public boolean addLocalVariable(String variable_name, Type type) {
+	public boolean addLocalVariable(String variable_name, String type) {
 		if(local_variables.containsKey(variable_name)) {
 			return false;
 		}
@@ -20,14 +20,14 @@ class FunctionSymbolTable {
 		return true;
 	}
 
-	public Type getLocalVariableType(String variable_name) {
+	public String getLocalVariableType(String variable_name) {
 		if (local_variables.containsKey(variable_name)) {
 			return local_variables.get(variable_name);
 		}
 		return null;
 	}
 
-	public boolean addFormalParameter(String parameter_name, Type type) {
+	public boolean addFormalParameter(String parameter_name, String type) {
 		if(formal_parameters.containsKey(parameter_name)) {
 			return false;
 		}
@@ -35,14 +35,14 @@ class FunctionSymbolTable {
 		return true;
 	}
 
-	public Type getFormalParameterType(String parameter_name) {
+	public String getFormalParameterType(String parameter_name) {
 		if(formal_parameters.containsKey(parameter_name)) {
 			return formal_parameters.get(parameter_name);
 		}
 		return null;
 	}
 
-	public Type getFunctionReturnType() {
+	public String getFunctionReturnType() {
 		return this.return_type;
 	}
 
@@ -50,25 +50,25 @@ class FunctionSymbolTable {
 		System.out.println("~~~~~~~~~~~~~~ FUNCTION SYMBOL TABLE ~~~~~~~~~~~~~");
 		System.out.println("Parameters");
 		for (String parameter : this.formal_parameters.keySet()) {
-			System.out.println(parameter);
+			System.out.println(parameter + ": " + this.formal_parameters.get(parameter));
 		}
 		System.out.println("Local Variables");
 		for (String local_var : this.local_variables.keySet()) {
-			System.out.println(local_var);
+			System.out.println(local_var + ": " + this.local_variables.get(local_var) );
 		}
 	}
 }
 
 class ClassSymbolTable {
-	public HashMap<String, Type> field_name_to_type;
+	public HashMap<String, String> field_name_to_type;
 	public HashMap<String, FunctionSymbolTable> function_name_to_table;
 
 	public ClassSymbolTable() {
-		field_name_to_type = new HashMap<String, Type>();
+		field_name_to_type = new HashMap<String, String>();
 		function_name_to_table = new HashMap<String, FunctionSymbolTable>();
 	}
 
-	public boolean addField(String variable_name, Type type) {
+	public boolean addField(String variable_name, String type) {
 		if(field_name_to_type.containsKey(variable_name)) {
 			return false;
 		}
@@ -76,14 +76,14 @@ class ClassSymbolTable {
 		return true;
 	}
 
-	public Type getFieldType(String variable_name) {
+	public String getFieldType(String variable_name) {
 		if (field_name_to_type.containsKey(variable_name)) {
 			return field_name_to_type.get(variable_name);
 		}
 		return null;
 	}
 
-	public boolean addFunction(String function_name, Type return_type) {
+	public boolean addFunction(String function_name, String return_type) {
 		if (function_name_to_table.containsKey(function_name)) {
 			return false;
 		}
@@ -102,12 +102,11 @@ class ClassSymbolTable {
 		System.out.println("~~~~~~~~~~~~~~ CLASS SYMBOL TABLE ~~~~~~~~~~~~~");
 		System.out.println("Variables");
 		for(String key: field_name_to_type.keySet()) {
-			System.out.println(key);
+			System.out.println(key + ": " + field_name_to_type.get(key));
 		}
 		System.out.println("Functions");
 		for(String key: function_name_to_table.keySet()) {
 			System.out.println(key);
-			// TODO: Print Function Symbol Table
 			function_name_to_table.get(key).print();
 		}
 	}

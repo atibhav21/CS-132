@@ -63,7 +63,6 @@ public class TypeCheckVisitor extends GJNoArguDepthFirst<String> {
     */
    public String visit(MainClass n) {
       n.f0.accept(this);
-      n.f1.accept(this);
       n.f2.accept(this);
       n.f3.accept(this);
       n.f4.accept(this);
@@ -73,7 +72,6 @@ public class TypeCheckVisitor extends GJNoArguDepthFirst<String> {
       n.f8.accept(this);
       n.f9.accept(this);
       n.f10.accept(this);
-      n.f11.accept(this);
       n.f12.accept(this);
       n.f13.accept(this);
       n.f14.accept(this);
@@ -124,9 +122,7 @@ public class TypeCheckVisitor extends GJNoArguDepthFirst<String> {
    public String visit(ClassExtendsDeclaration n) {
       n.f0.accept(this);
       class_name = n.f1.f0.toString();
-      n.f1.accept(this);
       n.f2.accept(this);
-      n.f3.accept(this);
       n.f4.accept(this);
       n.f5.accept(this);
       n.f6.accept(this);
@@ -162,7 +158,7 @@ public class TypeCheckVisitor extends GJNoArguDepthFirst<String> {
    public String visit(MethodDeclaration n) {
       n.f0.accept(this);
       String return_type = n.f1.accept(this);
-      n.f2.accept(this);
+      function_name = n.f2.f0.toString();
       n.f3.accept(this);
       n.f4.accept(this);
       n.f5.accept(this);
@@ -171,8 +167,9 @@ public class TypeCheckVisitor extends GJNoArguDepthFirst<String> {
       n.f8.accept(this);
       n.f9.accept(this);
       String return_expression_type = n.f10.accept(this);
-
+      function_name = null;
       if(return_type != return_expression_type) {
+        System.err.println("1");
       	PrintErrorAndExit();
       }
       return null;
@@ -271,10 +268,9 @@ public class TypeCheckVisitor extends GJNoArguDepthFirst<String> {
     * f3 -> ";"
     */
    public String visit(AssignmentStatement n) {
-      n.f0.accept(this);
-      String t1 = n.f1.accept(this);
+      String t1 = n.f0.accept(this);
       n.f2.accept(this);
-      String t2 = n.f3.accept(this);
+      String t2 = n.f2.accept(this);
       if(t1 != t2) {
       	PrintErrorAndExit();
       }
@@ -513,6 +509,7 @@ public class TypeCheckVisitor extends GJNoArguDepthFirst<String> {
       if (fst == null) {
       	PrintErrorAndExit();
       }
+      // TODO: Maybe set function_name
       LinkedHashMap<String, String> prior_parameters = function_parameters;
       function_parameters = fst.formal_parameters;
       int prior_index = parameter_index;
@@ -521,6 +518,9 @@ public class TypeCheckVisitor extends GJNoArguDepthFirst<String> {
       	PrintErrorAndExit();
       } 
       n.f4.accept(this);
+      if (parameter_index != function_parameters.size()) {
+        PrintErrorAndExit();
+      }
       function_parameters = prior_parameters;
       parameter_index = prior_index;
       return fst.return_type;
@@ -604,26 +604,27 @@ public class TypeCheckVisitor extends GJNoArguDepthFirst<String> {
    	  // TODO: Might have null ptr exception
    	  ClassSymbolTable cst = symbol_table.getClassSymbolTable(class_name);
    	  FunctionSymbolTable fst = symbol_table.getClassSymbolTable(class_name).getFunctionSymbolTable(function_name);
+      String ret_val = null;
    	  if(fst.getLocalVariableType(n.f0.toString()) != null) {
    	  	// Check Local Variables first
-   	  	return fst.getLocalVariableType(n.f0.toString());
+   	  	ret_val = fst.getLocalVariableType(n.f0.toString());
    	  }
    	  else {
    	  	if (fst.getFormalParameterType(n.f0.toString()) != null) {
    	  		// Check formal parameter list
-   	  		return fst.getFormalParameterType(n.f0.toString());
+   	  		ret_val = fst.getFormalParameterType(n.f0.toString());
    	  	}
    	  	else {
    	  		// Check class Fields
    	  		if (cst.getFieldType(n.f0.toString()) != null) {
-   	  			return cst.getFieldType(n.f0.toString());
+   	  			ret_val = cst.getFieldType(n.f0.toString());
    	  		}
    	  		else {
    	  			PrintErrorAndExit();
    	  		}
    	  	}
    	  }
-   	  return null;
+   	  return ret_val;
    }
 
    /**

@@ -29,6 +29,14 @@ class FunctionSymbolTable {
 	public String getFormalParameterType(String parameter_name) {
 		return formal_parameters.get(parameter_name);
 	}
+
+	public String getFunctionParameterList() {
+		function_header = function_name + "(this";
+		for (String parameter : formal_parameters) {
+			function_header += " " + parameter;
+		}
+		function_header += ")";
+	}
 }
 
 class ClassSymbolTable {

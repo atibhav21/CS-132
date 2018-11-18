@@ -14,6 +14,10 @@ class FunctionSymbolTable {
 		this.function_name = function_name;
 	}
 
+	public boolean isLocalVariable(variable_name) {
+		return local_variables.containsKey(variable_name) || formal_parameters.containsKey(variable_name);
+	}
+
 	public void addLocalVariable(String variable_name, String type) {
 		local_variables.put(variable_name, type);
 	}
@@ -36,6 +40,7 @@ class FunctionSymbolTable {
 			function_header += " " + parameter;
 		}
 		function_header += ")";
+		return function_header;
 	}
 }
 

@@ -4,18 +4,18 @@ import java.util.*;
 class FunctionSymbolTable {
 	public String function_name;
 	public HashMap<String, String> local_variables;
-	public LinkedHashMap<String, String> formal_parameters;
+	public LinkedList<String> formal_parameters;
 	public String return_type;
 
 	public FunctionSymbolTable(String function_name, String return_type) {
 		this.local_variables = new HashMap<String, String>();
-		this.formal_parameters = new LinkedHashMap<String, String>();
+		this.formal_parameters = new LinkedList<String>();
 		this.return_type = return_type;
 		this.function_name = function_name;
 	}
 
-	public boolean isLocalVariable(variable_name) {
-		return local_variables.containsKey(variable_name) || formal_parameters.containsKey(variable_name);
+	public boolean isLocalVariable(String variable_name) {
+		return local_variables.containsKey(variable_name) || formal_parameters.contains(variable_name);
 	}
 
 	public void addLocalVariable(String variable_name, String type) {
@@ -27,15 +27,11 @@ class FunctionSymbolTable {
 	}
 
 	public void addFormalParameter(String parameter_name, String type) {
-		formal_parameters.put(parameter_name, type);
-	}
-
-	public String getFormalParameterType(String parameter_name) {
-		return formal_parameters.get(parameter_name);
+		formal_parameters.add(parameter_name);
 	}
 
 	public String getFunctionParameterList() {
-		function_header = function_name + "(this";
+		String function_header = function_name + "(this";
 		for (String parameter : formal_parameters) {
 			function_header += " " + parameter;
 		}

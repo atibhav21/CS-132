@@ -4,18 +4,18 @@ import java.util.*;
 class FunctionSymbolTable {
 	public String function_name;
 	public HashMap<String, String> local_variables;
-	public LinkedList<String> formal_parameters;
+	public LinkedHashMap<String, String> formal_parameters;
 	public String return_type;
 
 	public FunctionSymbolTable(String function_name, String return_type) {
 		this.local_variables = new HashMap<String, String>();
-		this.formal_parameters = new LinkedList<String>();
+		this.formal_parameters = new LinkedHashMap<String, String>();
 		this.return_type = return_type;
 		this.function_name = function_name;
 	}
 
 	public boolean isLocalVariable(String variable_name) {
-		return local_variables.containsKey(variable_name) || formal_parameters.contains(variable_name);
+		return local_variables.containsKey(variable_name) || formal_parameters.containsKey(variable_name);
 	}
 
 	public void addLocalVariable(String variable_name, String type) {
@@ -23,20 +23,41 @@ class FunctionSymbolTable {
 	}
 
 	public String getLocalVariableType(String variable_name) {
-		return local_variables.get(variable_name);
+		if(local_variables.containsKey(variable_name)) {
+			return local_variables.get(variable_name);
+		}
+		else {
+			return formal_parameters.get(variable_name);
+		}
 	}
 
 	public void addFormalParameter(String parameter_name, String type) {
-		formal_parameters.add(parameter_name);
+		formal_parameters.put(parameter_name, type);
+	}
+
+	public String getFormalParameterType(String parameter_name) {
+		return formal_parameters.get(parameter_name);
 	}
 
 	public String getFunctionParameterList() {
 		String function_header = function_name + "(this";
-		for (String parameter : formal_parameters) {
+		for (String parameter : formal_parameters.keySet()) {
 			function_header += " " + parameter;
 		}
 		function_header += ")";
 		return function_header;
+	}
+
+	public void print() {
+		System.err.println("~~~~~~~~~~~~~~ FUNCTION SYMBOL TABLE ~~~~~~~~~~~~~");
+		System.err.println("Parameters");
+		for (String parameter : this.formal_parameters.keySet()) {
+			System.err.println(parameter + ": " + this.formal_parameters.get(parameter));
+		}
+		System.err.println("Local Variables");
+		for (String local_var : this.local_variables.keySet()) {
+			System.err.println(local_var + ": " + this.local_variables.get(local_var) );
+		}
 	}
 }
 
@@ -91,6 +112,19 @@ class ClassSymbolTable {
 	public int getMemberFunctionOffset(String function_name) {
 		return member_function_to_offset.get(function_name);
 	}
+
+	public void print() {
+		System.err.println("~~~~~~~~~~~~~~ CLASS SYMBOL TABLE ~~~~~~~~~~~~~");
+		System.err.println("Variables");
+		for(String key: member_variables.keySet()) {
+			System.err.println(key + ": " + member_variables.get(key));
+		}
+		System.err.println("Functions");
+		for(String key: function_symbol_table.keySet()) {
+			System.err.println(key);
+			function_symbol_table.get(key).print();
+		}
+	}
 }
 
 public class GlobalSymbolTable {
@@ -104,5 +138,13 @@ public class GlobalSymbolTable {
 	public ClassSymbolTable getClassSymbolTable(String class_name) {
 		// No need to do error checking since program type checks.
 		return global_symbol_table.get(class_name);
+	}
+
+	public void print() {
+		System.err.println("~~~~~~~~~~~~~~~ GLOBAL SYMBOL TABLE ~~~~~~~~~~~~~~~~~");
+		for(String key: global_symbol_table.keySet()) {
+			System.err.println(key);
+			global_symbol_table.get(key).print();
+		}
 	}
 }

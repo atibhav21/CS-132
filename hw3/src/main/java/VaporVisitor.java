@@ -11,6 +11,8 @@ public class VaporVisitor extends GJNoArguDepthFirst<String> {
 	int label_counter;
 	String class_name;
 	String function_name;
+  String latest_class_type;
+  boolean arrayAllocated;
 
 	VaporVisitor(GlobalSymbolTable gst) {
 		this.gst = gst;
@@ -18,6 +20,8 @@ public class VaporVisitor extends GJNoArguDepthFirst<String> {
 		indent_counter = 0;
 		variable_counter = 0;
 		label_counter = 0;
+    latest_class_type = null;
+    arrayAllocated = false;
 	}
 
   public LinkedList<String> getVaporCode() {
@@ -50,7 +54,8 @@ public class VaporVisitor extends GJNoArguDepthFirst<String> {
 
    private void generateNullPointerCheck(String array_variable_name) {
    	  String next_label = getNextLabel();
-      vapor_code.add(indent() + "if " + array_variable_name + " goto :" + next_label);
+      String array_index = checkSyntax(array_variable_name);
+      vapor_code.add(indent() + "if " + array_index + " goto :" + next_label);
       indent_counter++;
       vapor_code.add(indent() + "Error(\"null pointer\")");
       indent_counter--;
@@ -60,7 +65,8 @@ public class VaporVisitor extends GJNoArguDepthFirst<String> {
    private void generateOutOfBoundsCheck(String array_variable_name, String index_accessed) {
    	String next_label = getNextLabel();
    	String length_variable = getNextVariableName();
-   	vapor_code.add(indent() + length_variable + " = [" + array_variable_name + "]");
+    String array_index = checkSyntax(array_variable_name);
+   	vapor_code.add(indent() + length_variable + " = [" + array_index + "]");
    	String comparison_result = getNextVariableName();
    	vapor_code.add(indent() + comparison_result + " = Lt(" + index_accessed + " " + length_variable + ")");
    	vapor_code.add(indent() + "if " + comparison_result + " goto :" + next_label);
@@ -70,6 +76,15 @@ public class VaporVisitor extends GJNoArguDepthFirst<String> {
    	vapor_code.add(indent() + next_label + ":");
    }
 	
+   private String checkSyntax(String variable) {
+    String new_var = variable;
+    if(variable.indexOf(']') >= 0) {
+      new_var = getNextVariableName();
+      vapor_code.add(indent() + new_var + " = " + variable);
+    }
+    return new_var;
+   }
+
 	/**
     * f0 -> MainClass()
     * f1 -> ( TypeDeclaration() )*
@@ -78,7 +93,16 @@ public class VaporVisitor extends GJNoArguDepthFirst<String> {
    public String visit(Goal n) {
       n.f0.accept(this);
       n.f1.accept(this);
-      // TODO: Maybe add alloc code to the array?
+      if (arrayAllocated) {
+        vapor_code.add(indent() + "func AllocArray(size)");
+        indent_counter += 1;
+        vapor_code.add(indent() + "bytes = MulS(size 4)");
+        vapor_code.add(indent() + "bytes = Add(bytes 4)");
+        vapor_code.add(indent() + "v = HeapAllocZ(bytes)");
+        vapor_code.add(indent() + "[v] = size");
+        vapor_code.add(indent() + "ret v");
+      }
+      indent_counter -= 1;
       return null;
    }
    /**
@@ -107,6 +131,7 @@ public class VaporVisitor extends GJNoArguDepthFirst<String> {
    	  class_name = n.f1.f0.toString();
    	  function_name = n.f6.toString();
       n.f15.accept(this);
+      vapor_code.add(indent() + "ret");
       function_name = null;
       class_name = null;
       indent_counter -= 1;
@@ -148,7 +173,6 @@ public class VaporVisitor extends GJNoArguDepthFirst<String> {
     * f7 -> "}"
     */
    public String visit(ClassExtendsDeclaration n) {
-      // TODO: Check if I need to do something other than this for Inheritance.
       class_name = n.f1.f0.toString();
       n.f6.accept(this);
       class_name = null;
@@ -175,8 +199,11 @@ public class VaporVisitor extends GJNoArguDepthFirst<String> {
       vapor_code.add(indent() + "func " + class_name + "." + gst.getClassSymbolTable(class_name).getFunctionSymbolTable(function_name).getFunctionParameterList());
       resetVariableCounter();
       indent_counter++;
-      String return_value = n.f8.accept(this);
-      vapor_code.add(indent() + "ret " + return_value);
+      n.f8.accept(this);
+      String return_value = n.f10.accept(this);
+      String next_variable = getNextVariableName();
+      vapor_code.add(indent() + next_variable + " = " + return_value);
+      vapor_code.add(indent() + "ret " + next_variable);
       function_name = null;
       indent_counter--;
       return null;
@@ -201,7 +228,6 @@ public class VaporVisitor extends GJNoArguDepthFirst<String> {
     * f2 -> "}"
     */
    public String visit(Block n) {
-      // TODO: Check if need to indent for block.
       n.f1.accept(this);
       return null;
    }
@@ -229,13 +255,15 @@ public class VaporVisitor extends GJNoArguDepthFirst<String> {
     * f6 -> ";"
     */
    public String visit(ArrayAssignmentStatement n) {
-      String array_variable_name = n.f0.accept(this);
-      generateNullPointerCheck(array_variable_name);
-	  String index_accessed = n.f2.accept(this);
-      generateOutOfBoundsCheck(array_variable_name, index_accessed);
+      String array_address = n.f0.accept(this);
+      String variable_name = getNextVariableName();
+      vapor_code.add(indent() + variable_name + " = " + array_address);
+      generateNullPointerCheck(variable_name);
+	    String index_accessed = n.f2.accept(this);
+      generateOutOfBoundsCheck(variable_name, index_accessed);
       String array_index_pointer = getNextVariableName();
       vapor_code.add(indent() + array_index_pointer + " = MulS(" + index_accessed + " 4)");
-      vapor_code.add(indent() + array_index_pointer + " = Add(" + array_index_pointer + " " + array_variable_name + ")");
+      vapor_code.add(indent() + array_index_pointer + " = Add(" + array_index_pointer + " " + variable_name + ")");
       String rhs = n.f5.accept(this);
       vapor_code.add(indent() + "[" + array_index_pointer + "+4] = " + rhs);
       return null;
@@ -251,12 +279,17 @@ public class VaporVisitor extends GJNoArguDepthFirst<String> {
     * f6 -> Statement()
     */
    public String visit(IfStatement n) {
-      String var_for_condition = n.f2.accept(this);
+      String var_for_condition = checkSyntax(n.f2.accept(this));
       String next_label = getNextLabel();
+      String end_label = getNextLabel();
       vapor_code.add(indent() + "if0 " + var_for_condition + " goto :" + next_label);
+      indent_counter++;
       n.f4.accept(this);
+      vapor_code.add(indent() + "goto :" + end_label);
+      indent_counter--;
       vapor_code.add(indent() + next_label + ":");
       n.f6.accept(this);
+      vapor_code.add(indent() + end_label + ":");
       return null;
    }
 
@@ -315,10 +348,12 @@ public class VaporVisitor extends GJNoArguDepthFirst<String> {
     * f2 -> PrimaryExpression()
     */
    public String visit(AndExpression n) {
-      String var1 = n.f0.accept(this);
-      String var2 = n.f2.accept(this);
+      String first_operand = n.f0.accept(this);
+      String second_operand = n.f2.accept(this);
+      first_operand = checkSyntax(first_operand);
+      second_operand = checkSyntax(second_operand);
       String assignment_variable = getNextVariableName();
-      vapor_code.add(indent() + assignment_variable + " = MulS(" + var1 + " " + var2 + ")");
+      vapor_code.add(indent() + assignment_variable + " = MulS(" + first_operand + " " + second_operand + ")");
       return assignment_variable;
    }
 
@@ -328,8 +363,8 @@ public class VaporVisitor extends GJNoArguDepthFirst<String> {
     * f2 -> PrimaryExpression()
     */
    public String visit(CompareExpression n) {
-      String first_var = n.f0.accept(this);
-      String second_var = n.f2.accept(this);
+      String first_var = checkSyntax(n.f0.accept(this));
+      String second_var = checkSyntax(n.f2.accept(this));
       String var_with_comparison_result = getNextVariableName();
       vapor_code.add(indent() + var_with_comparison_result + " = " + "LtS(" + first_var + " " + second_var + ")");
       return var_with_comparison_result;
@@ -341,8 +376,8 @@ public class VaporVisitor extends GJNoArguDepthFirst<String> {
     * f2 -> PrimaryExpression()
     */
    public String visit(PlusExpression n) {
-      String first_operand = n.f0.accept(this);
-      String second_operand = n.f2.accept(this);
+      String first_operand = checkSyntax(n.f0.accept(this));
+      String second_operand = checkSyntax(n.f2.accept(this));
       String var_with_add_result = getNextVariableName();
       vapor_code.add(indent() + var_with_add_result + " = " + "Add(" + first_operand + " " + second_operand + ")");
       return var_with_add_result;
@@ -354,8 +389,8 @@ public class VaporVisitor extends GJNoArguDepthFirst<String> {
     * f2 -> PrimaryExpression()
     */
    public String visit(MinusExpression n) {
-      String first_operand = n.f0.accept(this);
-      String second_operand = n.f2.accept(this);
+      String first_operand = checkSyntax(n.f0.accept(this));
+      String second_operand = checkSyntax(n.f2.accept(this));
       String var_with_subtract_result = getNextVariableName();
       vapor_code.add(indent() + var_with_subtract_result + " = " + "Sub(" + first_operand + " " + second_operand + ")");
       return var_with_subtract_result;
@@ -367,8 +402,8 @@ public class VaporVisitor extends GJNoArguDepthFirst<String> {
     * f2 -> PrimaryExpression()
     */
    public String visit(TimesExpression n) {
-      String first_operand = n.f0.accept(this);
-      String second_operand = n.f2.accept(this);
+      String first_operand = checkSyntax(n.f0.accept(this));
+      String second_operand = checkSyntax(n.f2.accept(this));
       String var_with_mult_result = getNextVariableName();
       vapor_code.add(indent() + var_with_mult_result + " = " + "MulS(" + first_operand + " " + second_operand + ")");
       return var_with_mult_result;	
@@ -381,14 +416,14 @@ public class VaporVisitor extends GJNoArguDepthFirst<String> {
     * f3 -> "]"
     */
    public String visit(ArrayLookup n) {
-      String array_identifier = n.f0.accept(this);
-      String array_pointer_temp = getNextVariableName();
-      generateNullPointerCheck(array_pointer_temp);
+      String array_identifier = checkSyntax(n.f0.accept(this));
+      generateNullPointerCheck(array_identifier);
       String index_accessed = n.f2.accept(this);
-      generateOutOfBoundsCheck(array_pointer_temp, index_accessed);
+      generateOutOfBoundsCheck(array_identifier, index_accessed);
       String variable_with_result = getNextVariableName();
+      //String array_pointer_temp = getNextVariableName();
       vapor_code.add(indent() + variable_with_result + " = MulS(" + index_accessed + " 4)");
-      vapor_code.add(indent() + variable_with_result + " = Add(" + variable_with_result + " " + array_pointer_temp + ")");
+      vapor_code.add(indent() + variable_with_result + " = Add(" + variable_with_result + " " + array_identifier + ")");
       vapor_code.add(indent() + variable_with_result + " = [" + variable_with_result + "+ 4]");
       return variable_with_result;
    }
@@ -416,15 +451,23 @@ public class VaporVisitor extends GJNoArguDepthFirst<String> {
     * f4 -> ( ExpressionList() )?
     * f5 -> ")"
     */
-   public R visit(MessageSend n) {
-      R _ret=null;
-      n.f0.accept(this);
-      n.f1.accept(this);
-      n.f2.accept(this);
-      n.f3.accept(this);
-      n.f4.accept(this);
-      n.f5.accept(this);
-      return _ret;
+   public String visit(MessageSend n) {
+      String temp_variable = n.f0.accept(this);   
+      String offset = String.valueOf(gst.getClassSymbolTable(latest_class_type).getMemberFunctionOffset(n.f2.f0.toString()));
+      
+      String variable_with_call_address = getNextVariableName();
+      vapor_code.add(indent() + variable_with_call_address + " = [" + temp_variable + "]");
+      vapor_code.add(indent() + variable_with_call_address + " = [" + variable_with_call_address + " + " + offset + "]"); 
+      String parameter_list = n.f4.accept(this);
+      variable_with_call_address = checkSyntax(variable_with_call_address);
+      String return_val = getNextVariableName();
+      if(parameter_list == null) {
+        vapor_code.add(indent() + return_val + " = call " + variable_with_call_address + "(" + temp_variable + ")");
+      }
+      else {
+        vapor_code.add(indent() + return_val + " = call " + variable_with_call_address + "(" + temp_variable + " " + parameter_list + ")");
+      }
+      return return_val;
    }
 
    /**
@@ -432,9 +475,10 @@ public class VaporVisitor extends GJNoArguDepthFirst<String> {
     * f1 -> ( ExpressionRest() )*
     */
    public String visit(ExpressionList n) {
-      String parameter_list = n.f0.accept(this);
+      String parameter_list = checkSyntax(n.f0.accept(this));
+
       for(Node parameter : n.f1.nodes) {
-      	parameter_list += " " + parameter.accept(this);
+        parameter_list += " " + checkSyntax(parameter.accept(this));
       }
       return parameter_list;
    }
@@ -490,14 +534,15 @@ public class VaporVisitor extends GJNoArguDepthFirst<String> {
       String identifier_name = n.f0.toString();
       FunctionSymbolTable fst = gst.getClassSymbolTable(class_name).getFunctionSymbolTable(function_name);
       if (fst.isLocalVariable(identifier_name)) {
-      	return identifier_name;
+      	latest_class_type = fst.getLocalVariableType(identifier_name);
+        return identifier_name;
       }
       else {
       	// Member variable so get the offset from the Symbol Table.
-      	String offset = String.valueOf(gst.getClassSymbolTable(class_name).getMemberVariableOffset(identifier_name));
-      	String variable_name = getNextVariableName();
-      	vapor_code.add(indent() + variable_name + " = [this + " + offset.toString() + "]");
-      	return variable_name;
+        ClassSymbolTable cst = gst.getClassSymbolTable(class_name);
+        latest_class_type = cst.getMemberVariableType(identifier_name);
+        String offset = String.valueOf(cst.getMemberVariableOffset(identifier_name));
+        return "[this + " + offset.toString() + "]";
       }
    }
 
@@ -505,6 +550,7 @@ public class VaporVisitor extends GJNoArguDepthFirst<String> {
     * f0 -> "this"
     */
    public String visit(ThisExpression n) {
+      latest_class_type = class_name;
       return "this";
    }
 
@@ -516,6 +562,7 @@ public class VaporVisitor extends GJNoArguDepthFirst<String> {
     * f4 -> "]"
     */
    public String visit(ArrayAllocationExpression n) {
+      arrayAllocated = true;
       String variable = getNextVariableName();
       String size_variable = n.f3.accept(this);
       vapor_code.add(indent() + variable + " = call :AllocArray(" + size_variable + ")");
@@ -529,10 +576,12 @@ public class VaporVisitor extends GJNoArguDepthFirst<String> {
     * f3 -> ")"
     */
    public String visit(AllocationExpression n) {
+      latest_class_type = n.f1.f0.toString();
       String variable = getNextVariableName();
       int sizeToAllocate = gst.getClassSymbolTable(n.f1.f0.toString()).getClassSize();
       vapor_code.add(indent() + variable + " = HeapAllocZ(" + sizeToAllocate + ")");
       vapor_code.add(indent() + "[" + variable + "] = :vmt_" + n.f1.f0.toString());
+      generateNullPointerCheck(variable);
       return variable;
    }
 

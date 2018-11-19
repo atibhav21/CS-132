@@ -219,4 +219,10 @@ public class SymbolTableVisitor extends GJNoArguDepthFirst<String> {
       return "Integer";
    }
 
+   /**
+    * f0 -> <IDENTIFIER>
+    */
+   public String visit(Identifier n) {
+      return n.f0.toString();
+   }
 }

@@ -12,7 +12,7 @@ public class J2V {
     		GlobalSymbolTable gst = st_visitor.getGlobalSymbolTable();
     		VaporVisitor vapor_visitor = new VaporVisitor(gst);
     		vapor_visitor.visit(goal);
-    		List<String> vapor_code = vapor_visitor.getVaporCode();
+    		LinkedList<String> vapor_code = vapor_visitor.getVaporCode();
     		for(String line: vapor_code) {
     			System.out.println(line);
     		}

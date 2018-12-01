@@ -78,7 +78,7 @@ public class VaporVisitor extends GJNoArguDepthFirst<String> {
 	
    private String checkSyntax(String variable) {
     String new_var = variable;
-    if(variable.indexOf(']') >= 0) {
+    if(variable.indexOf('[') >= 0) {
       new_var = getNextVariableName();
       vapor_code.add(indent() + new_var + " = " + variable);
     }

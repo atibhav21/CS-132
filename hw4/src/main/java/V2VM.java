@@ -41,7 +41,7 @@ public class V2VM {
           LinkedList<String> vaporm_code = translator.getVaporMCode();
           for(String line : vaporm_code) {
             // TODO: Change from err to out
-            System.err.println(line);
+            System.out.println(line);
           }
         }
         catch (IOException e) {

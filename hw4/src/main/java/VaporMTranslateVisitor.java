@@ -48,10 +48,11 @@ public class VaporMTranslateVisitor extends VInstr.Visitor<java.lang.RuntimeExce
 
 			LinkedList<VCodeLabel> code_labels = new LinkedList<VCodeLabel>(Arrays.asList(function.labels));
 			for(VInstr instruction : function.body) {
-				for(VCodeLabel label : code_labels) {
+				for(Iterator<VCodeLabel> it = code_labels.iterator(); it.hasNext();) {
+					VCodeLabel label = it.next();
 					if(label.sourcePos.line < instruction.sourcePos.line) {
 						vaporm_code.add(label.ident + ":");
-						code_labels.remove(label);
+						it.remove();
 					}
 				}
 				instruction.accept(this);
@@ -220,10 +221,30 @@ public class VaporMTranslateVisitor extends VInstr.Visitor<java.lang.RuntimeExce
 
 	@Override
 	public void visit(VCall c) {
-		// Put arguments in out array.
+		// Put arguments in out array.	
+		int out_index = 0;
+		for(VOperand arg : c.args) {
+			String reg = assignToRegisterOrGetLiteral(arg);
+			vaporm_code.add(indent() + "out[" + out_index + "] = " + reg);
+			out_index += 1;
+		}
 		// Put Function address in a register.
+		String function_addr_reg = c.addr.toString(); 
+		if(c.addr instanceof VAddr.Var) {
+			String location = getTempVarLocation(c.addr.toString());
+			String register = getAvailableRegister();
+			vaporm_code.add(indent() + register + " = " + location);
+			function_addr_reg = register;
+		}
+
 		// Make the call.
+		vaporm_code.add(indent() + "call " + function_addr_reg);
+
 		// if c.dest is not null, put $v0 in c.dest.
+		if(c.dest != null) {
+			String loc_to_store = getTempVarLocationOrCreate(c.dest.toString());
+			vaporm_code.add(indent() + loc_to_store + " = $v0");
+		}
 	}
 
 	@Override
@@ -277,6 +298,9 @@ public class VaporMTranslateVisitor extends VInstr.Visitor<java.lang.RuntimeExce
 	public void visit(VReturn r) {
 		if(r.value != null) {
 			String operand_loc = getTempVarLocation(r.value.toString());
+			if(operand_loc == null) {
+				operand_loc = r.value.toString();
+			}
 			vaporm_code.add(indent() + "$v0 = " + operand_loc);
 		}
 		vaporm_code.add(indent() + "ret");

@@ -71,7 +71,7 @@ public class VaporMTranslator extends VInstr.Visitor<java.lang.RuntimeException>
 	public String indent() {
 		String indentedString = "";
 		for(int i = 0; i < indent_counter; i++ ) {
-			indentedString += " ";
+			indentedString += "  ";
 		}
 		return indentedString;
 	}
@@ -162,7 +162,7 @@ public class VaporMTranslator extends VInstr.Visitor<java.lang.RuntimeException>
 	public void visit(VBuiltIn c) {
 		if(c.dest == null) {
 			// No assignment, just a built in call.
-			
+
 		}
 		else {
 			HashSet<String> registers_used = new HashSet<String>();

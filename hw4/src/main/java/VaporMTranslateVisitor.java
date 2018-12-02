@@ -46,19 +46,20 @@ public class VaporMTranslateVisitor extends VInstr.Visitor<java.lang.RuntimeExce
 				index += 1;
 			}
 
+			LinkedList<VCodeLabel> code_labels = new LinkedList<VCodeLabel>(Arrays.asList(function.labels));
 			for(VInstr instruction : function.body) {
+				for(VCodeLabel label : code_labels) {
+					if(label.sourcePos.line < instruction.sourcePos.line) {
+						vaporm_code.add(label.ident + ":");
+						code_labels.remove(label);
+					}
+				}
 				instruction.accept(this);
 			}
 
 			indent_counter -= 1;
 			// Add empty line after each function.
 			vaporm_code.add("");
-
-			// Debug: Remove.
-			System.err.println(function.ident);
-			for(String temp_name : temp_name_to_location.keySet()) {
-				System.err.println(temp_name + " @ " + temp_name_to_location.get(temp_name));
-			}
 		}
 		System.err.println("End of Function");
 
@@ -160,6 +161,7 @@ public class VaporMTranslateVisitor extends VInstr.Visitor<java.lang.RuntimeExce
 			return operand.toString();
 		} 
 		else {
+			// TODO: Check if this is right
 			// VOperand.Static, so put value in register, and return register.
 			String register = getAvailableRegister();
 			vaporm_code.add(indent() + register + " = " + operand.toString());
@@ -219,6 +221,9 @@ public class VaporMTranslateVisitor extends VInstr.Visitor<java.lang.RuntimeExce
 	@Override
 	public void visit(VCall c) {
 		// Put arguments in out array.
+		// Put Function address in a register.
+		// Make the call.
+		// if c.dest is not null, put $v0 in c.dest.
 	}
 
 	@Override
@@ -228,12 +233,41 @@ public class VaporMTranslateVisitor extends VInstr.Visitor<java.lang.RuntimeExce
 
 	@Override
 	public void visit(VMemRead r) {
-		
+		String rhs = r.source.toString();
+		if(r.source instanceof VMemRef.Global) {
+			VMemRef.Global source = (VMemRef.Global) r.source;
+			if(source.base instanceof VAddr.Var) {
+				String location = getTempVarLocation(source.base.toString());
+				String register = getAvailableRegister();
+				vaporm_code.add(indent() + register + " = " + location);
+				rhs = "[" + register + " + " + String.valueOf(source.byteOffset) + "]";
+			}
+		}
+		String lhs_location = getTempVarLocationOrCreate(r.dest.toString());
+		String lhs_reg = getAvailableRegister();
+		vaporm_code.add(indent() + lhs_reg + " = " + rhs);
+		vaporm_code.add(indent() + lhs_location + " = " + lhs_reg);
+		freeRegisters();
 	}
 
 	@Override
 	public void visit(VMemWrite w) {
-		
+		String rhs_register_or_val = assignToRegisterOrGetLiteral(w.source);
+		if(w.dest instanceof VMemRef.Global) {
+			VMemRef.Global destination = (VMemRef.Global) w.dest;
+			if(destination.base instanceof VAddr.Var) {
+				String location = getTempVarLocation(destination.base.toString());
+				String register = getAvailableRegister();
+				vaporm_code.add(indent() + register + " = " + location);
+				vaporm_code.add(indent() + "[" + register + " + " + String.valueOf(destination.byteOffset)
+												 + "]" + " = " + rhs_register_or_val);
+				freeRegisters();
+			}
+		}
+		else {
+			System.err.println("Trying to write to some other space");
+			System.exit(1);
+		}
 	}
 
 	/*
@@ -241,6 +275,11 @@ public class VaporMTranslateVisitor extends VInstr.Visitor<java.lang.RuntimeExce
 	 */
 	@Override
 	public void visit(VReturn r) {
-		
+		if(r.value != null) {
+			String operand_loc = getTempVarLocation(r.value.toString());
+			vaporm_code.add(indent() + "$v0 = " + operand_loc);
+		}
+		vaporm_code.add(indent() + "ret");
+		freeRegisters();
 	} 
 }

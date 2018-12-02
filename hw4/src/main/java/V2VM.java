@@ -37,7 +37,7 @@ public class V2VM {
   public static void main (String [] args) {
         try {
           VaporProgram program = parseVapor();
-          VaporMTranslator translator = new VaporMTranslator(program);
+          VaporMTranslateVisitor translator = new VaporMTranslateVisitor(program);
           LinkedList<String> vaporm_code = translator.getVaporMCode();
           for(String line : vaporm_code) {
             // TODO: Change from err to out

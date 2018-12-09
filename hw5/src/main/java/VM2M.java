@@ -7,7 +7,9 @@ import java.io.InputStreamReader;
 import java.io.IOException;
 import java.io.PrintStream;
 
-public class V2VM {
+import java.util.LinkedList;
+
+public class VM2M {
 	public static VaporProgram parseVapor() throws IOException {
 	  Op[] ops = {
     		Op.Add, Op.Sub, Op.MulS, Op.Eq, Op.Lt, Op.LtS,
@@ -44,7 +46,7 @@ public class V2VM {
 			LinkedList<String> mips_code = visitor.getMIPSCode();
 			for(String line : mips_code) {
 				// TODO: Change from err to out.
-				System.err.println(line);
+				System.out.println(line);
 			}
 		}
 		catch (IOException e) {
